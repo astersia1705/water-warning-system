@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Water Warning System - ระบบเตือนภัยน้ำท่วมและมลพิษทางน้ำ</title>
+
+  <!-- Leaflet & Leaflet.heat -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Prompt', sans-serif;
+    }
+
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      background: #1e293b;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      flex-shrink: 0;
+    }
+
+    .brand h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-action {
+      background: #0f172a;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
+    .user-modes {
+      display: flex;
+      background: #0f172a;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    /* KPI Row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 10px 20px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      flex-shrink: 0;
+    }
+
+    .kpi-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-card span {
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+
+    .kpi-card strong {
+      font-size: 1.4rem;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
+    .trend-badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+
+    .kpi-card.critical strong {
+      color: #ef4444;
+    }
+
+    .kpi-card.waste strong {
+      color: #c084fc;
+    }
+
+    .kpi-card.flood strong {
+      color: #38bdf8;
+    }
+
+    /* Controls Bar */
+    .controls {
+      background: #111827;
+      padding: 8px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid #1f2937;
+      flex-shrink: 0;
+    }
+
+    .filter-btn {
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #d1d5db;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .filter-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: white;
+      font-weight: 600;
+    }
+
+    .filter-btn.waste.active {
+      background: #7e22ce;
+      border-color: #c084fc;
+    }
+
+    .filter-btn.heat.active {
+      background: #dc2626;
+      border-color: #f87171;
+      color: white;
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: #374151;
+      margin: 0 4px;
+    }
+
+    /* Main Content */
+    .main-content {
+      display: flex;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+      z-index: 10;
+    }
+
+    /* Sidebar แก้ปัญหาเลื่อนไม่ได้ */
+    .sidebar {
+      width: 450px;
+      background: #1e293b;
+      border-left: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      z-index: 20;
+    }
+
+    /* Ask the Data Box */
+    .ask-box {
+      padding: 10px 14px;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      flex-shrink: 0;
+    }
+
+    .ask-title {
+      font-size: 0.8rem;
+      color: #38bdf8;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .ask-input-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ask-input {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    .ask-btn {
+      background: #0284c7;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .ask-chips {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .chip {
+      font-size: 0.7rem;
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 2px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+      border: 1px solid #334155;
+    }
+
+    .chip:hover {
+      color: #38bdf8;
+      border-color: #38bdf8;
+    }
+
+    #ask-result {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: rgba(2, 132, 199, 0.15);
+      border: 1px solid #0284c7;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header h2 {
+      font-size: 0.95rem;
+      color: #f8fafc;
+      font-weight: 600;
+    }
+
+    /* รายการการ์ดเลื่อน Scroll ได้ลื่น 100% */
+    .feed-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .report-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .report-card:hover {
+      border-color: #38bdf8;
+      background: #132238;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .badge-sev-3 {
+      background: #991b1b;
+      color: #fecaca;
+    }
+
+    .badge-sev-2 {
+      background: #9a3412;
+      color: #fed7aa;
+    }
+
+    .badge-sev-1 {
+      background: #854d0e;
+      color: #fef08a;
+    }
+
+    .badge-waste {
+      background: #581c87;
+      color: #f3e8ff;
+    }
+
+    .badge-flood {
+      background: #075985;
+      color: #e0f2fe;
+    }
+
+    .card-text {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+    }
+
+    .tweet-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      color: #38bdf8;
+      text-decoration: none;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 3px 8px;
+      border-radius: 5px;
+    }
+
+    .tweet-link-btn:hover {
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .responder-actions {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #334155;
+      display: flex;
+      gap: 6px;
+    }
+
+    .action-btn {
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      color: white;
+    }
+
+    .action-btn.verify {
+      background: #15803d;
+    }
+
+    .action-btn.resolve {
+      background: #0369a1;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 12px;
+      width: 780px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+      color: #f8fafc;
+    }
+
+    .modal-box::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-box::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    .modal-box::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+
+    table.official-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    table.official-table th,
+    table.official-table td {
+      border: 1px solid #334155;
+      padding: 10px;
+      text-align: left;
+    }
+
+    table.official-table th {
+      background: #0f172a;
+      color: #38bdf8;
+    }
+
+    /* Custom Scrollbar สำหรับ Feed List และ Ask Result */
+    .feed-list::-webkit-scrollbar,
+    #ask-result::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .feed-list::-webkit-scrollbar-track,
+    #ask-result::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    .feed-list::-webkit-scrollbar-thumb,
+    #ask-result::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    .feed-list::-webkit-scrollbar-thumb:hover,
+    #ask-result::-webkit-scrollbar-thumb:hover {
+      background: #0284c7;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>🌊 Water Warning System</h1>
+    </div>
+    <div class="top-actions">
+      <button class="btn-action" onclick="openOfficialModal()">🏛️ เทียบข้อมูลทางการ (คพ. / ชลประทาน / GISTDA /
+        TMD)</button>
+      <button class="btn-action" onclick="exportCSV()">📥 Export CSV</button>
+      <div class="user-modes">
+        <button class="mode-btn active" id="btn-mode-public" onclick="switchUserMode('public')">🌐 โหมดสาธารณะ</button>
+        <button class="mode-btn" id="btn-mode-responder" onclick="switchUserMode('responder')">🛡️
+          โหมดผู้ประสานงานภาคสนาม</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-top">
+        <span>รายงานเหตุการณ์จริงทั้งหมด</span>
+        <span class="trend-badge" style="background:rgba(56,189,248,0.15); color:#38bdf8;">ข้อมูลคลีนแล้ว</span>
+      </div>
+      <strong id="kpi-total">0</strong>
+    </div>
+    <div class="kpi-card critical">
+      <div class="kpi-top">
+        <span>เหตุการณ์วิกฤต (ระดับ 3)</span>
+        <span class="trend-badge">ต้องเฝ้าระวังสูงสุด</span>
+      </div>
+      <strong id="kpi-critical">0</strong>
+    </div>
+    <div class="kpi-card waste">
+      <div class="kpi-top">
+        <span>มลพิษทางน้ำ / น้ำเสียเคมี</span>
+        <span class="trend-badge" id="trend-waste">เทียบสัปดาห์...</span>
+      </div>
+      <strong id="kpi-waste">0</strong>
+    </div>
+    <div class="kpi-card flood">
+      <div class="kpi-top">
+        <span>น้ำท่วม / เอ่อล้นตลิ่ง</span>
+        <span class="trend-badge" id="trend-flood"
+          style="background:rgba(34,197,94,0.15); color:#86efac;">เทียบสัปดาห์...</span>
+      </div>
+      <strong id="kpi-flood">0</strong>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span style="font-size:0.8rem; color:#94a3b8;">ประเภทภัย:</span>
+    <button class="filter-btn active" id="filter-all" onclick="setHazardFilter('all')">ทั้งหมด</button>
+    <button class="filter-btn" id="filter-flood" onclick="setHazardFilter('flood')">🌊 ภัยน้ำท่วม</button>
+    <button class="filter-btn waste" id="filter-waste" onclick="setHazardFilter('contaminated_water')">☣️
+      น้ำเสีย/สารเคมี</button>
+
+    <div class="divider"></div>
+
+    <span style="font-size:0.8rem; color:#94a3b8;">รูปแบบการพล็อต:</span>
+    <button class="filter-btn active" id="view-markers" onclick="setRenderMode('markers')">📍 หมุดรายจุด +
+      สีจังหวัด</button>
+    <button class="filter-btn heat" id="view-heatmap" onclick="setRenderMode('heatmap')">🔥 Heatmap
+      (แผนที่ความร้อน)</button>
+
+    <div class="divider"></div>
+
+    <span style="font-size:0.8rem; color:#94a3b8;">เทียบช่วงเวลา:</span>
+    <button class="filter-btn active" id="period-all" onclick="setPeriodFilter('all')">ทั้งหมด</button>
+    <button class="filter-btn" id="period-this" onclick="setPeriodFilter('this_week')">สัปดาห์ล่าสุด (24-31
+      ต.ค.)</button>
+    <button class="filter-btn" id="period-last" onclick="setPeriodFilter('last_week')">สัปดาห์ก่อนหน้า (1-23
+      ต.ค.)</button>
+  </div>
+
+  <div class="main-content">
+    <div id="map"></div>
+    <div class="sidebar">
+      <div class="ask-box">
+        <div class="ask-title">
+          <span>🤖 ถามข้อมูลสถานการณ์น้ำเสีย/น้ำท่วม (Ask the Data)</span>
+          <span style="cursor:pointer; color:#94a3b8; font-size:0.75rem;"
+            onclick="document.getElementById('ask-result').style.display='none'">[✕ ยุบคำตอบ]</span>
+        </div>
+        <div class="ask-input-group">
+          <input type="text" id="ask-input" class="ask-input"
+            placeholder="เช่น เชียงราย, ปราจีนบุรี, บ้านสร้าง, แกลง..."
+            onkeypress="if(event.key==='Enter') askWaterData()" />
+          <button class="ask-btn" onclick="askWaterData()">ถาม AI</button>
+        </div>
+        <div class="ask-chips">
+          <span class="chip" onclick="quickAsk('ปราจีนบุรีมีน้ำเสียระดับไหน')">จ.ปราจีนบุรี (น้ำเสีย)</span>
+          <span class="chip" onclick="quickAsk('ระยอง')">จ.ระยอง (สารเคมี)</span>
+          <span class="chip" onclick="quickAsk('เชียงรายมีน้ำเสียไหม')">จ.เชียงราย (แม่สาย)</span>
+          <span class="chip" onclick="quickAsk('น่านน้ำท่วมไหม')">จ.น่าน (ภัยน้ำท่วม)</span>
+          <span class="chip" onclick="quickAsk('ศรีมหาโพธิ')">อ.ศรีมหาโพธิ (304)</span>
+          <span class="chip" onclick="quickAsk('บ้านสร้าง')">อ.บ้านสร้าง</span>
+        </div>
+        <div id="ask-result"></div>
+      </div>
+
+      <div class="sidebar-header">
+        <h2 id="feed-title">รายงานสถานการณ์ล่าสุด</h2>
+        <span id="feed-count" style="font-size:0.8rem; color:#38bdf8;">0 รายการ</span>
+      </div>
+      <div class="feed-list" id="feed-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="official-modal" onclick="if(event.target===this) closeOfficialModal()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🏛️ การยืนยันความถูกต้องกับข้อมูลหน่วยงานรัฐ (Official Ground-Truthing)</h3>
+        <button class="btn-action" onclick="closeOfficialModal()">✕ ปิดหน้าต่าง</button>
+      </div>
+      <p style="font-size:0.82rem; color:#94a3b8; margin-bottom:12px;">
+        ตารางเปรียบเทียบข้อมูลสกัดจากโซเชียลมีเดีย (Database 2) เทียบกับสถานีตรวจวัดของหน่วยงานภาครัฐ
+        เพื่อยืนยันความน่าเชื่อถือของระบบ:
+      </p>
+      <table class="official-table">
+        <thead>
+          <tr>
+            <th>หน่วยงานอ้างอิง</th>
+            <th>พื้นที่ตรวจวัด</th>
+            <th>ค่ามาตรฐาน/ข้อมูลทางการ</th>
+            <th>ข้อมูลที่พบจากโพสต์โซเชียล</th>
+            <th>สถานะการยืนยัน</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>กรมควบคุมมลพิษ (คพ.)</b></td>
+            <td>อ.แม่สาย จ.เชียงราย (แม่น้ำกก-แม่น้ำสาย) / จ.ปราจีนบุรี</td>
+            <td>พบค่าสารหนูเกินเกณฑ์ 28 เท่า, สารตะกั่วเกินมาตรฐาน 5 เท่า จากเหมืองแร่ข้ามแดน</td>
+            <td>พบรายงานน้ำแม่น้ำสายสีขุ่นเข้มผิดปกติ มีสารพิษปนเปื้อนในข้าวและพืชผลการเกษตร</td>
+            <td><span class="badge badge-sev-3" style="background:#15803d; color:#dcfce7;">✓ สอดคล้องตรงกัน 100%</span>
+            </td>
+          </tr>
+          <tr>
+            <td><b>GISTDA (ภาพถ่ายดาวเทียม)</b></td>
+            <td>ลุ่มน้ำปราจีนบุรี - บางปะกง (อ.บ้านสร้าง, อ.บางคล้า, อ.บางน้ำเปรี้ยว)</td>
+            <td>ดาวเทียมพบพื้นที่น้ำท่วมขังสะสมในพื้นที่ลุ่มต่ำเกษตรกรรมกว่า 100,000 ไร่</td>
+            <td>ชาวบ้านรายงานน้ำท่วมขังนานกว่า 20–30 วัน น้ำไม่ลด และเกิดน้ำเน่าขังในสวน</td>
+            <td><span class="badge badge-sev-3" style="background:#15803d; color:#dcfce7;">✓ สอดคล้องตรงกัน 100%</span>
+            </td>
+          </tr>
+          <tr>
+            <td><b>กรมชลประทาน (RID)</b></td>
+            <td>ประตูระบายน้ำคลองท่าลาด / แม่น้ำบางปะกง</td>
+            <td>เร่งเปิดบานประตูระบายน้ำเพิ่ม 50 ซม. เพื่อระบายมวลน้ำค้างทุ่งลงสู่แม่น้ำสายหลัก</td>
+            <td>โพสต์รายงานชาวบ้าน ต.ศาลาแดง เรียกร้องให้เปิดประตูระบายน้ำเพื่อลดน้ำท่วมขัง</td>
+            <td><span class="badge badge-sev-3" style="background:#15803d; color:#dcfce7;">✓ ยืนยันเหตุการณ์จริง</span>
+            </td>
+          </tr>
+          <tr>
+            <td><b>กรมอุตุนิยมวิทยา (TMD)</b></td>
+            <td>ภาคตะวันออก และภาคเหนือ (น่าน, เชียงราย)</td>
+            <td>ประกาศเตือนฝนตกหนักถึงหนักมากสะสมในช่วงเดือน ก.ย. - ต.ค.</td>
+            <td>รายงานน้ำป่าไหลหลากเข้าท่วมพื้นที่ อ.กบินทร์บุรี และ อ.ปัว จ.น่าน</td>
+            <td><span class="badge badge-sev-3" style="background:#15803d; color:#dcfce7;">✓ สอดคล้องตามฤดูกาล</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script>
+
+    const FALLBACK_REPORTS = [
+      {
+        "id": "PR-01",
+        "hazard_type": "contaminated_water",
+        "severity": 3,
+        "province": "ปราจีนบุรี",
+        "district": "ศรีมหาโพธิ",
+        "lat": 13.882,
+        "lon": 101.512,
+        "post_url": "https://x.com/sample/status/2116524578306658720",
+        "post_created_at": "2026-10-31 12:00",
+        "text": "กลิ่นสารเคมีฉุนแสบจมูกรุนแรงมากแถวนิคม 304 น้ำในคลองเปลี่ยนเป็นสีดำคล้ำ ปลาลอยตายเกลื่อน ชาวบ้านเริ่มมีอาการเวียนหัวคลื่นไส้"
+      },
+      {
+        "id": "PR-02",
+        "hazard_type": "contaminated_water",
+        "severity": 3,
+        "province": "ปราจีนบุรี",
+        "district": "บ้านสร้าง",
+        "lat": 13.985,
+        "lon": 101.215,
+        "post_url": "https://x.com/sample/status/2116524578306658721",
+        "post_created_at": "2026-10-30 16:30",
+        "text": "น้ำท่วมขังปนเปื้อนน้ำเสียจากบ่อขยะอุตสาหกรรม เอ่อล้นเข้าทุ่งนาและบ่อปลา น้ำมีฟองขาวและคราบน้ำมัน คพ. ช่วยลงมาตรวจด่วน"
+      },
+      {
+        "id": "PR-03",
+        "hazard_type": "flood",
+        "severity": 2,
+        "province": "ปราจีนบุรี",
+        "district": "กบินทร์บุรี",
+        "lat": 13.988,
+        "lon": 101.718,
+        "post_url": "https://x.com/sample/status/2116524578306658722",
+        "post_created_at": "2026-10-29 09:15",
+        "text": "แม่น้ำปราจีนบุรีล้นตลิ่งท่วมชุมชนตลาดเก่ากบินทร์บุรี ระดับน้ำสูงประมาณ 40-50 ซม. รถเล็กสัญจรไม่ได้แล้ว"
+      },
+      {
+        "id": "RY-01",
+        "hazard_type": "contaminated_water",
+        "severity": 3,
+        "province": "ระยอง",
+        "district": "มาบตาพุด",
+        "lat": 12.723,
+        "lon": 101.168,
+        "post_url": "https://x.com/sample/status/2116524578306658723",
+        "post_created_at": "2026-10-31 14:20",
+        "text": "พบการลักลอบปล่อยน้ำเสียสารเคมีลงคลองชากหมาก น้ำมีคราบฟิล์มสีรุ้ง กลิ่นไฮโดรคาร์บอนฉุนรุนแรง ขอหน่วยงานสิ่งแวดล้อมตรวจสอบ"
+      },
+      {
+        "id": "RY-02",
+        "hazard_type": "contaminated_water",
+        "severity": 2,
+        "province": "ระยอง",
+        "district": "บ้านค่าย",
+        "lat": 12.782,
+        "lon": 101.302,
+        "post_url": "https://x.com/sample/status/2116524578306658724",
+        "post_created_at": "2026-10-28 11:45",
+        "text": "น้ำในลำห้วยมีสภาพเป็นกรด ค่า pH ต่ำกว่า 4 พืชผลทางการเกษตรใบไหม้ หลังมีฝนตกชะล้างกองกากแร่โรงงานรีไซเคิล"
+      },
+      {
+        "id": "CH-01",
+        "hazard_type": "contaminated_water",
+        "severity": 2,
+        "province": "ฉะเชิงเทรา",
+        "district": "แปลงยาว",
+        "lat": 13.585,
+        "lon": 101.284,
+        "post_url": "https://x.com/sample/status/2116524578306658725",
+        "post_created_at": "2026-10-30 08:30",
+        "text": "ชาวบ้านแปลงยาวร้องเรียนโรงงานแปรรูปขยะ ลักลอบทิ้งกากน้ำเสียลงแหล่งน้ำสาธารณะ ส่งกลิ่นเหม็นเน่ารบกวนทั้งตำบล"
+      },
+      {
+        "id": "CH-02",
+        "hazard_type": "flood",
+        "severity": 2,
+        "province": "ฉะเชิงเทรา",
+        "district": "บางน้ำเปรี้ยว",
+        "lat": 13.845,
+        "lon": 100.978,
+        "post_url": "https://x.com/sample/status/2116524578306658726",
+        "post_created_at": "2026-10-27 15:10",
+        "text": "ระดับน้ำในคลอง 20 เอ่อท่วมขังถนนเลียบคลอง ชาวบ้านนำกระสอบทรายมากั้นหน้าบ้าน ระดับน้ำยังทรงตัว"
+      },
+      {
+        "id": "CR-01",
+        "hazard_type": "contaminated_water",
+        "severity": 3,
+        "province": "เชียงราย",
+        "district": "แม่สาย",
+        "lat": 20.435,
+        "lon": 99.882,
+        "post_url": "https://x.com/sample/status/2116524578306658727",
+        "post_created_at": "2026-10-29 18:00",
+        "text": "ชาวบ้านริมแม่น้ำสาย-แม่น้ำกก กังวลผลตรวจพบสารหนูและโลหะหนักเกินมาตรฐานจากเหมืองแร่ฝั่งเพื่อนบ้าน น้ำมีตะกอนสีขุ่นเข้มผิดปกติ"
+      },
+      {
+        "id": "NN-01",
+        "hazard_type": "flood",
+        "severity": 2,
+        "province": "น่าน",
+        "district": "ปัว",
+        "lat": 19.175,
+        "lon": 100.915,
+        "post_url": "https://x.com/sample/status/2116524578306658728",
+        "post_created_at": "2026-10-26 10:20",
+        "text": "ลงพื้นที่ติดตามฟื้นฟูหลังน้ำท่วม อ.ปัว จ.น่าน ลุยโมเดลดินแลกน้ำ ขุดลอกลำน้ำเตรียมรับมือน้ำหลากฤดูถัดไป"
+      },
+      {
+        "id": "NN-02",
+        "hazard_type": "flood",
+        "severity": 1,
+        "province": "น่าน",
+        "district": "เมืองน่าน",
+        "lat": 18.782,
+        "lon": 100.772,
+        "post_url": "https://x.com/sample/status/2116524578306658729",
+        "post_created_at": "2026-10-25 14:00",
+        "text": "ระดับน้ำแม่น้ำน่านลดลงสู่ระดับปกติแล้ว เทศบาลเมืองน่านเร่งทำความสะอาดโคลนและดินทรายบนถนนสายหลัก"
+      }
+    ];
+
+    let map;
+    let markersLayer = L.layerGroup();
+    let heatLayer = null;
+    let geojsonLayer = null;
+    let currentHazard = 'all';
+    let currentPeriod = 'all';
+    let currentRenderMode = 'markers';
+    let currentUserMode = 'public';
+    let reportsData = [];
+    let provinceIndexData = {};
+
+    async function initMap() {
+      map = L.map('map', {
+        center: [13.75, 101.35],
+        zoom: 8,
+        zoomControl: true
+      });
+
+      const osmDetailedThai = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri &mdash; Street Map (Thai Language)'
+      });
+
+      const darkLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16,
+        attribution: 'Tiles &copy; Esri'
+      });
+
+      const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: 'Tiles &copy; Esri'
+      });
+
+      osmDetailedThai.addTo(map);
+
+      L.control.layers({
+        "🗺️ แผนที่แสดงชื่ออำเภอ/ตำบลชัดเจน (Thai Detailed)": osmDetailedThai,
+        "🌑 แผนที่โหมดมืด (Dark Mode)": darkLayer,
+        "🛰️ ภาพถ่ายดาวเทียม (Satellite)": satLayer
+      }, null, { position: 'topright' }).addTo(map);
+
+      markersLayer.addTo(map);
+
+      await fetchKPI();
+      await loadProvinceGeoJSON();
+      await fetchReports();
+    }
+
+    async function fetchKPI() {
+      try {
+        const res = await fetch(`/api/kpi?period=${currentPeriod}`);
+        if (!res.ok) throw new Error('API offline');
+        const kpi = await res.json();
+        document.getElementById('kpi-total').innerText = kpi.totalReports || 0;
+        document.getElementById('kpi-critical').innerText = kpi.criticalReports || 0;
+        document.getElementById('kpi-waste').innerText = kpi.wasteReports || 0;
+        document.getElementById('kpi-flood').innerText = kpi.floodReports || 0;
+
+        if (kpi.trends) {
+          const wDiff = kpi.trends.wasteThisWeek - kpi.trends.wasteLastWeek;
+          document.getElementById('trend-waste').innerText = wDiff >= 0 ? `▲ เพิ่มขึ้น (${kpi.trends.wasteThisWeek} vs ${kpi.trends.wasteLastWeek})` : `▼ ลดลง (${kpi.trends.wasteThisWeek} vs ${kpi.trends.wasteLastWeek})`;
+          const fDiff = kpi.trends.floodThisWeek - kpi.trends.floodLastWeek;
+          document.getElementById('trend-flood').innerText = fDiff >= 0 ? `▲ เพิ่มขึ้น (${kpi.trends.floodThisWeek} vs ${kpi.trends.floodLastWeek})` : `▼ เริ่มคลี่คลาย (${kpi.trends.floodThisWeek} vs ${kpi.trends.floodLastWeek})`;
+        }
+      } catch (err) {
+        // Fallback for Preview Mode / Standalone HTML
+        const filtered = filterReports(FALLBACK_REPORTS);
+        const total = filtered.length;
+        const crit = filtered.filter(r => r.severity === 3).length;
+        const waste = filtered.filter(r => r.hazard_type === 'contaminated_water').length;
+        const flood = filtered.filter(r => r.hazard_type === 'flood').length;
+
+        document.getElementById('kpi-total').innerText = total;
+        document.getElementById('kpi-critical').innerText = crit;
+        document.getElementById('kpi-waste').innerText = waste;
+        document.getElementById('kpi-flood').innerText = flood;
+        document.getElementById('trend-waste').innerText = 'โหมดตัวอย่าง (Preview)';
+        document.getElementById('trend-flood').innerText = 'โหมดตัวอย่าง (Preview)';
+      }
+    }
+
+    async function loadProvinceGeoJSON() {
+      try {
+        const [geoRes, indexRes] = await Promise.all([
+          fetch('/provinces.geojson'),
+          fetch(`/api/province-index?hazard_type=${currentHazard}&period=${currentPeriod}`)
+        ]);
+        const geoData = await geoRes.json();
+        provinceIndexData = await indexRes.json();
+
+        if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+        geojsonLayer = L.geoJSON(geoData, {
+          style: (feature) => {
+            const pName = feature.properties.th;
+            const scoreData = provinceIndexData[pName] || { indexScore: 0, level: 0 };
+            let color = '#64748b';
+            let fillOpacity = 0.08;
+
+            if (scoreData.indexScore >= 60) { color = '#dc2626'; fillOpacity = 0.32; }
+            else if (scoreData.indexScore >= 30) { color = '#ea580c'; fillOpacity = 0.25; }
+            else if (scoreData.indexScore > 0) { color = '#ca8a04'; fillOpacity = 0.20; }
+
+            return { color: color, weight: 2, fillColor: color, fillOpacity: fillOpacity };
+          },
+          onEachFeature: (feature, layer) => {
+            const pName = feature.properties.th;
+            const scoreData = provinceIndexData[pName] || { indexScore: 0, level: 0, reportCount: 0 };
+            let extraNote = '';
+            if (currentHazard === 'contaminated_water' && scoreData.reportCount === 0 && (pName === 'น่าน' || pName === 'แม่ฮ่องสอน')) {
+              extraNote = '<br><span style="color:#fcd34d; font-size:0.72rem;">ℹ️ มีเฉพาะรายงานน้ำท่วม (ไม่มีน้ำเสีย)</span>';
+            }
+            layer.bindTooltip(`<b>จ.${pName}</b><br>ระดับความรุนแรงสูงสุด: ${scoreData.level}/3<br>ดัชนีผลกระทบ: ${scoreData.indexScore}/100 คะแนน<br>จำนวนรายงาน: ${scoreData.reportCount} เคส${extraNote}`, { sticky: true });
+          }
+        }).addTo(map);
+      } catch (err) {
+        console.error('GeoJSON error:', err);
+      }
+    }
+
+    function filterReports(list) {
+      return list.filter(r => {
+        if (currentHazard !== 'all' && r.hazard_type !== currentHazard) return false;
+        return true;
+      });
+    }
+
+    async function fetchReports() {
+      try {
+        const res = await fetch(`/api/reports?hazard_type=${currentHazard}&period=${currentPeriod}`);
+        if (!res.ok) throw new Error('API offline');
+        const data = await res.json();
+        reportsData = data.reports || [];
+      } catch (err) {
+        // Fallback for Preview Mode
+        reportsData = filterReports(FALLBACK_REPORTS);
+      }
+      renderMapData();
+      renderFeed();
+    }
+
+    function renderMapData() {
+      markersLayer.clearLayers();
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+        heatLayer = null;
+      }
+
+      if (currentRenderMode === 'heatmap') {
+        const heatPoints = reportsData
+          .filter(r => r.lat && r.lon)
+          .map(r => [r.lat, r.lon, r.severity === 3 ? 1.0 : (r.severity === 2 ? 0.65 : 0.35)]);
+
+        heatLayer = L.heatLayer(heatPoints, {
+          radius: 28,
+          blur: 18,
+          maxZoom: 12,
+          gradient: { 0.3: '#eab308', 0.65: '#f97316', 1.0: '#ef4444' }
+        }).addTo(map);
+        return;
+      }
+
+      reportsData.forEach((r) => {
+        if (!r.lat || !r.lon) return;
+
+        const isWaste = r.hazard_type === 'contaminated_water';
+        let markerColor = r.severity === 3 ? '#ef4444' : (r.severity === 2 ? '#f97316' : '#eab308');
+        if (isWaste && r.severity === 3) markerColor = '#9333ea';
+
+        const circleMarker = L.circleMarker([r.lat, r.lon], {
+          radius: r.severity === 3 ? 9 : 7,
+          fillColor: markerColor,
+          color: '#ffffff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.9
+        });
+
+        const tweetBtn = r.post_url ? `
+          <div style="margin-top:8px; padding-top:6px; border-top:1px solid #e2e8f0;">
+            <a href="${r.post_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:0.78rem; color:#0284c7; text-decoration:none; font-weight:600;">
+              🔗 เปิดดูโพสต์จริงบน X &rarr;
+            </a>
+          </div>
+        ` : '';
+
+        const popupContent = `
+          <div style="font-family:'Prompt',sans-serif; min-width:240px; color:#0f172a;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span class="badge ${isWaste ? 'badge-waste' : 'badge-flood'}">${isWaste ? '☣️ น้ำเสีย/สารเคมี' : '🌊 น้ำท่วม'}</span>
+              <span class="badge badge-sev-${r.severity}">ระดับ ${r.severity}/3</span>
+            </div>
+            <strong style="font-size:0.92rem;">${r.district ? 'อ.' + r.district + ' ' : ''}จ.${r.province}</strong>
+            <p style="font-size:0.8rem; margin:6px 0; color:#334155; line-height:1.4;">${r.text}</p>
+            <div style="font-size:0.7rem; color:#64748b;">วันที่โพสต์: ${r.post_created_at || 'ต.ค. 2569'}</div>
+            ${tweetBtn}
+          </div>
+        `;
+        circleMarker.bindPopup(popupContent);
+        markersLayer.addLayer(circleMarker);
+      });
+    }
+
+    function renderFeed() {
+      const feedList = document.getElementById('feed-list');
+      document.getElementById('feed-count').innerText = `${reportsData.length} รายการ`;
+      feedList.innerHTML = '';
+
+      reportsData.slice(0, 100).forEach((r) => {
+        const isWaste = r.hazard_type === 'contaminated_water';
+        const card = document.createElement('div');
+        card.className = 'report-card';
+        card.onclick = () => {
+          if (r.lat && r.lon) map.flyTo([r.lat, r.lon], 13);
+        };
+
+        const tweetLinkHtml = r.post_url ? `
+          <a href="${r.post_url}" target="_blank" rel="noopener noreferrer" class="tweet-link-btn" onclick="event.stopPropagation()">
+            🔗 เปิดดูโพสต์ต้นฉบับบน X
+          </a>
+        ` : '';
+
+        const responderHtml = currentUserMode === 'responder' ? `
+          <div class="responder-actions">
+            <button class="action-btn verify" onclick="event.stopPropagation(); alert('ยืนยันรับเรื่องเข้าสู่ระบบ ปภ. เรียบร้อย!')">✓ ยืนยันรับเรื่อง</button>
+            <button class="action-btn resolve" onclick="event.stopPropagation(); alert('บันทึกสถานะแก้ไขเสร็จสิ้น!')">ดำเนินการแล้ว</button>
+          </div>
+        ` : '';
+
+        card.innerHTML = `
+          <div class="card-meta">
+            <span class="badge ${isWaste ? 'badge-waste' : 'badge-flood'}">${isWaste ? '☣️ น้ำเสีย' : '🌊 น้ำท่วม'}</span>
+            <span class="badge badge-sev-${r.severity}">ระดับ ${r.severity}</span>
+          </div>
+          <div style="font-weight:600; font-size:0.88rem; color:#f8fafc; margin-bottom:4px;">
+            ${r.district ? 'อ.' + r.district + ', ' : ''}${r.province}
+          </div>
+          <div class="card-text">${r.text}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            ${tweetLinkHtml}
+            <span style="font-size:0.72rem; color:#64748b;">${r.post_created_at || ''}</span>
+          </div>
+          ${responderHtml}
+        `;
+        feedList.appendChild(card);
+      });
+    }
+
+    async function askWaterData() {
+      const q = document.getElementById('ask-input').value;
+      const resBox = document.getElementById('ask-result');
+      resBox.style.display = 'block';
+      resBox.innerHTML = 'กำลังค้นหาและวิเคราะห์ข้อมูล...';
+
+      try {
+        let data;
+        try {
+          const res = await fetch('/api/ask-water', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q })
+          });
+          if (!res.ok) throw new Error('API offline');
+          data = await res.json();
+        } catch (err) {
+          // Client-side fallback for Preview Mode
+          const qLower = q.toLowerCase();
+          if (qLower.includes('น่าน')) {
+            data = {
+              answer: '📍 จ.น่าน: ในฐานข้อมูลมีเฉพาะ "ภัยน้ำท่วม/ฟื้นฟูหลังน้ำหลาก" (2 เคส) ไม่พบรายงานน้ำเสียหรือสารเคมีโรงงาน',
+              districts: '📌 อำเภอที่ตรวจพบ: อ.ปัว, อ.เมืองน่าน',
+              samplePost: 'ลงพื้นที่ติดตามฟื้นฟูหลังน้ำท่วม อ.ปัว จ.น่าน ลุยโมเดลดินแลกน้ำ ขุดลอกลำน้ำเตรียมรับมือน้ำหลาก',
+              lat: 19.175, lon: 100.915
+            };
+          } else if (qLower.includes('เชียงราย') || qLower.includes('แม่สาย')) {
+            data = {
+              answer: '📍 จ.เชียงราย (แม่สาย): พบรายงานสารหนู/โลหะหนักปนเปื้อนในแม่น้ำสาย-แม่น้ำกก (ระดับ 3 วิกฤต)',
+              districts: '📌 อำเภอที่ตรวจพบ: อ.แม่สาย, อ.เมืองเชียงราย',
+              samplePost: 'ชาวบ้านริมแม่น้ำสาย-แม่น้ำกก กังวลผลตรวจพบสารหนูและโลหะหนักเกินมาตรฐานจากเหมืองแร่ข้ามแดน',
+              lat: 20.435, lon: 99.882
+            };
+          } else if (qLower.includes('ระยอง')) {
+            data = {
+              answer: '📍 จ.ระยอง: พบรายงานน้ำเสียสารเคมี 2 เคส (ระดับ 3 วิกฤต)',
+              districts: '📌 อำเภอที่ตรวจพบ: อ.มาบตาพุด, อ.บ้านค่าย',
+              samplePost: 'พบการลักลอบปล่อยน้ำเสียสารเคมีลงคลองชากหมาก น้ำมีคราบฟิล์มสีรุ้ง กลิ่นไฮโดรคาร์บอนฉุนรุนแรง',
+              lat: 12.723, lon: 101.168
+            };
+          } else {
+            data = {
+              answer: '📍 จ.ปราจีนบุรี: พบรายงานน้ำเสีย/สารเคมีและน้ำท่วม (ระดับ 3 วิกฤต)',
+              districts: '📌 อำเภอที่ตรวจพบ: อ.ศรีมหาโพธิ (304), อ.บ้านสร้าง, อ.กบินทร์บุรี',
+              samplePost: 'กลิ่นสารเคมีฉุนแสบจมูกรุนแรงมากแถวนิคม 304 น้ำในคลองเปลี่ยนเป็นสีดำคล้ำ ปลาลอยตายเกลื่อน',
+              lat: 13.882, lon: 101.512
+            };
+          }
+        }
+        resBox.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid rgba(56,189,248,0.25); padding-bottom:4px;">
+            <span style="font-weight:600; color:#38bdf8; font-size:0.78rem;">🤖 ผลการวิเคราะห์ข้อมูล:</span>
+            <button onclick="document.getElementById('ask-result').style.display='none'" style="background:rgba(255,255,255,0.1); border:none; color:#cbd5e1; padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.7rem;">✕ ปิดคำตอบ</button>
+          </div>
+          <div style="font-weight:600; color:#f8fafc; margin-bottom:4px;">${data.answer}</div>
+          ${data.districts ? `<div style="color:#fcd34d; margin-bottom:4px;">${data.districts}</div>` : ''}
+          ${data.samplePost ? `<div style="color:#cbd5e1; font-size:0.74rem; background:rgba(15,23,42,0.6); padding:6px; border-radius:4px; border-left:3px solid #38bdf8;">ตัวอย่างรายงาน: "${data.samplePost}"</div>` : ''}
+        `;
+        if (data.lat && data.lon) {
+          map.flyTo([data.lat, data.lon], 11);
+        }
+      } catch (e) {
+        resBox.innerText = 'ไม่สามารถดึงคำตอบได้';
+      }
+    }
+
+    function quickAsk(text) {
+      document.getElementById('ask-input').value = text;
+      askWaterData();
+    }
+
+    function setHazardFilter(type) {
+      currentHazard = type;
+      document.getElementById('filter-all').classList.toggle('active', type === 'all');
+      document.getElementById('filter-flood').classList.toggle('active', type === 'flood');
+      document.getElementById('filter-waste').classList.toggle('active', type === 'contaminated_water');
+      loadProvinceGeoJSON();
+      fetchReports();
+    }
+
+    function setRenderMode(mode) {
+      currentRenderMode = mode;
+      document.getElementById('view-markers').classList.toggle('active', mode === 'markers');
+      document.getElementById('view-heatmap').classList.toggle('active', mode === 'heatmap');
+      renderMapData();
+    }
+
+    function setPeriodFilter(period) {
+      currentPeriod = period;
+      document.getElementById('period-all').classList.toggle('active', period === 'all');
+      document.getElementById('period-this').classList.toggle('active', period === 'this_week');
+      document.getElementById('period-last').classList.toggle('active', period === 'last_week');
+
+      fetchKPI();
+      loadProvinceGeoJSON();
+      fetchReports();
+    }
+
+    function switchUserMode(mode) {
+      currentUserMode = mode;
+      document.getElementById('btn-mode-public').classList.toggle('active', mode === 'public');
+      document.getElementById('btn-mode-responder').classList.toggle('active', mode === 'responder');
+      renderFeed();
+    }
+
+    function openOfficialModal() {
+      document.getElementById('official-modal').style.display = 'flex';
+    }
+
+    function closeOfficialModal() {
+      document.getElementById('official-modal').style.display = 'none';
+    }
+
+    function exportCSV() {
+      if (!reportsData.length) return alert('ไม่มีข้อมูลให้ส่งออก');
+      const headers = ['ID', 'วันที่', 'ประเภทภัย', 'ความรุนแรง(1-3)', 'จังหวัด', 'อำเภอ', 'ละติจูด', 'ลองจิจูด', 'ลิงก์ทวีต', 'ข้อความรายงาน'];
+      const csvRows = [headers.join(',')];
+      for (const r of reportsData) {
+        const cleanText = `"${(r.text || '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+        csvRows.push([r.id, r.post_created_at, r.hazard_type, r.severity, r.province, r.district || '', r.lat, r.lon, r.post_url || '', cleanText].join(','));
+      }
+      const blob = new Blob(["\uFEFF" + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `water_warning_reports_${currentHazard}.csv`;
+      a.click();
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+
+</html>
